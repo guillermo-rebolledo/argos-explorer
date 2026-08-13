@@ -97,3 +97,28 @@ fn undersized_terminal_shows_explicit_fallback() {
     let screen = render_text(&mut app, 30, 8);
     assert!(screen.contains("Terminal too small"));
 }
+
+#[test]
+fn vscode_button_is_visible_only_when_cli_is_available() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let mut app = test_app(root);
+    app.vscode_available = true;
+    assert!(render_text(&mut app, 80, 20).contains("VSCode"));
+
+    app.vscode_available = false;
+    assert!(!render_text(&mut app, 80, 20).contains("VSCode"));
+}
+
+#[test]
+fn narrow_top_bar_hides_vscode_to_preserve_quit_button() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let mut app = test_app(root);
+    app.vscode_available = true;
+
+    let screen = render_text(&mut app, 40, 20);
+
+    assert!(!screen.contains("VSCode"));
+    assert!(screen.contains("Quit"));
+}

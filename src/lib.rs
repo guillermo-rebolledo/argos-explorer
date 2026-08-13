@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod diagnostics;
+pub mod external;
 pub mod git;
 pub mod icons;
 pub mod input;

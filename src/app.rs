@@ -11,6 +11,7 @@ use lru::LruCache;
 
 use crate::{
     config::Config,
+    external::VscodeCli,
     git::{ChangeEntry, ChangeGroup, DiffOutput, GitRepo},
     search::{PathRecord, QuickOpen},
     terminal::ArgosExplorerTerminal,
@@ -172,10 +173,12 @@ pub struct App {
     pub status: String,
     pub diagnostics: VecDeque<String>,
     pub watcher_degraded: bool,
+    pub vscode_available: bool,
 
     workers: WorkerPool,
     watcher: Option<WatchService>,
     repo: Option<GitRepo>,
+    vscode: Option<VscodeCli>,
     generation: u64,
     directory_generations: HashMap<PathBuf, u64>,
     git_generation: u64,
@@ -197,6 +200,8 @@ pub struct App {
 impl App {
     pub fn new(config: Config) -> Self {
         let root = config.root.clone();
+        let vscode = VscodeCli::detect();
+        let vscode_available = vscode.is_some();
         let watcher_result = WatchService::start(&root);
         let (watcher, watcher_degraded, watcher_message) = match watcher_result {
             Ok(watcher) => (Some(watcher), false, None),
@@ -227,9 +232,11 @@ impl App {
             status: "Starting…".to_owned(),
             diagnostics: VecDeque::new(),
             watcher_degraded,
+            vscode_available,
             workers: WorkerPool::new(),
             watcher,
             repo: None,
+            vscode,
             generation: 0,
             directory_generations: HashMap::new(),
             git_generation: 0,
@@ -592,16 +599,34 @@ impl App {
         self.request_directory(root);
     }
 
+    pub fn open_vscode(&mut self) {
+        let Some(vscode) = self.vscode.clone() else {
+            self.set_status("VS Code CLI is not available");
+            return;
+        };
+        let workspace = PathBuf::from(crate::config::display_path(&self.config.root));
+        match vscode.open_workspace(&workspace) {
+            Ok(_) => self.set_status("Opened Workspace Root in VS Code"),
+            Err(error) => self.set_status(format!("Could not open VS Code: {error}")),
+        }
+    }
+
     pub fn click(&mut self, column: u16, row: u16) {
         if row == 0 {
-            if matches!(self.screen, Screen::Preview | Screen::Diff | Screen::Help) && column <= 9 {
-                self.back();
+            let full_screen = matches!(self.screen, Screen::Preview | Screen::Diff | Screen::Help);
+            if full_screen {
+                if column <= 9 {
+                    self.back();
+                } else if column as usize >= self.viewport_width.saturating_sub(8) {
+                    self.quit();
+                }
                 return;
             }
             match column {
                 0..=6 => self.set_screen(Screen::Files),
                 8..=16 => self.set_screen(Screen::Changes),
                 18..=29 => self.open_quick_open(),
+                31..=38 if self.vscode_available && self.viewport_width >= 48 => self.open_vscode(),
                 value if value as usize >= self.viewport_width.saturating_sub(8) => self.quit(),
                 _ => {}
             }

@@ -88,6 +88,10 @@ fn render_tabs(frame: &mut Frame<'_>, app: &App, area: Rect, palette: Palette) {
             app.screen == Screen::QuickOpen,
             palette,
         ));
+        if app.vscode_available && area.width >= 48 {
+            spans.push(Span::raw(" "));
+            spans.push(action_button(" VSCode ", palette));
+        }
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
     let quit_width = 8.min(area.width);
@@ -117,6 +121,14 @@ fn tab(label: &'static str, selected: bool, palette: Palette) -> Span<'static> {
     } else {
         Span::styled(label, Style::default().fg(palette.muted))
     }
+}
+fn action_button(label: &'static str, palette: Palette) -> Span<'static> {
+    Span::styled(
+        label,
+        Style::default()
+            .fg(palette.accent)
+            .add_modifier(Modifier::BOLD),
+    )
 }
 
 fn render_context(frame: &mut Frame<'_>, app: &App, area: Rect, palette: Palette) {
@@ -433,7 +445,7 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, palette: Palette) {
         ),
         (
             "Views",
-            "Ctrl+1 Files · Ctrl+2 Changes · Ctrl+P Quick Open · Esc back · q quit",
+            "Ctrl+1 Files · Ctrl+2 Changes · Ctrl+P Quick Open · Ctrl+O VSCode · Esc back · q quit",
         ),
         (
             "Search",

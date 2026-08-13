@@ -10,6 +10,7 @@
 - Inspect conflicted, staged, unstaged, and untracked Git changes.
 - View unified diffs, including binary, renamed, deleted, conflicted, and large untracked files.
 - Find files quickly with the global Quick Open fuzzy finder.
+- Open the Workspace Root in a new VS Code window when the `code` CLI is available.
 - Automatically refresh after filesystem changes while preserving navigation state.
 - Choose Nerd Font, emoji, or icon-free rendering.
 - Use ANSI, high-contrast, monochrome, ASCII, and no-color modes.
@@ -21,6 +22,7 @@
 - Windows 10 or Windows 11, x64.
 - Windows Terminal, PowerShell, or the modern Windows console host.
 - Git for Windows is optional. File browsing works without Git; Changes View and Diff View require it.
+- VS Code is optional. The VSCode top-bar button appears only when the `code` CLI is available on `PATH`.
 - Rust and Cargo are not required when using the packaged installer or portable ZIP.
 
 ## Installation
@@ -172,6 +174,10 @@ Displays the selected Change Entry as a full-screen unified diff with old and ne
 
 Press `Ctrl+P` to search file paths throughout the Workspace. Results are published while indexing continues. Opening a result displays its File Preview; returning restores the query and selection.
 
+### VS Code
+
+When the `code` CLI is available on `PATH`, the top bar displays a `VSCode` button. Click it or press `Ctrl+O` to run `code --new-window <Workspace Root>`. The button is hidden when the CLI is unavailable.
+
 ## Keyboard and mouse controls
 
 | Action | Controls |
@@ -180,9 +186,10 @@ Press `Ctrl+P` to search file paths throughout the Workspace. Results are publis
 | Activate file or directory | `Enter` or left-click |
 | Expand | Right arrow or `l` |
 | Collapse or move back | Left arrow or `h` |
-| Files View | `Ctrl+1` |
-| Changes View | `Ctrl+2` |
+| Files View | `Ctrl+1` or `1` |
+| Changes View | `Ctrl+2` or `2` |
 | Quick Open | `Ctrl+P` |
+| Open Workspace Root in VS Code | `Ctrl+O` or click `VSCode` |
 | Local filter or text search | `/` |
 | Next or previous match | `n` / `p` |
 | Next or previous diff hunk | `]` / `[` |
@@ -196,7 +203,7 @@ Press `Ctrl+P` to search file paths throughout the Workspace. Results are publis
 | Back or dismiss | `Esc` |
 | Quit | `q` outside Quick Open; `Ctrl+C` always |
 
-The mouse can activate files and directories, switch views, open diffs, use Back, and scroll. Use `Shift+wheel` for horizontal scrolling where supported.
+The mouse can activate files and directories, switch views, open diffs, launch VS Code, use Back, and scroll. Use `Shift+wheel` for horizontal scrolling where supported.
 
 ## Configuration
 

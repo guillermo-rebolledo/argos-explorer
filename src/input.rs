@@ -20,6 +20,10 @@ fn handle_key(app: &mut App, key: KeyEvent) {
                 app.quit();
                 return;
             }
+            KeyCode::Char('o') => {
+                app.open_vscode();
+                return;
+            }
             KeyCode::Char('p') => {
                 if app.screen == Screen::QuickOpen {
                     app.move_selection(-1);
@@ -81,6 +85,8 @@ fn handle_key(app: &mut App, key: KeyEvent) {
     }
 
     match key.code {
+        KeyCode::Char('1') => app.set_screen(Screen::Files),
+        KeyCode::Char('2') => app.set_screen(Screen::Changes),
         KeyCode::Char('q') => app.quit(),
         KeyCode::Esc => app.back(),
         KeyCode::Char('?') => app.open_help(),
