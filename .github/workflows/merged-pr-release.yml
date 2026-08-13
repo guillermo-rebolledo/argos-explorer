@@ -1,0 +1,106 @@
+name: Build merged PR release
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merged-pr-release-${{ github.event.pull_request.merge_commit_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Windows release
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out merged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.merge_commit_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.97.0
+          rustc --version
+          cargo --version
+
+      - name: Check formatting
+        shell: cmd
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        shell: cmd
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Run tests
+        shell: cmd
+        run: cargo test --all-targets --all-features --locked
+
+      - name: Build installer and portable archive
+        shell: cmd
+        run: scripts\package.cmd
+
+      - name: Determine release metadata
+        id: release
+        shell: pwsh
+        run: |
+          $shortSha = (git rev-parse --short=7 HEAD).Trim()
+          $target = (git rev-parse HEAD).Trim()
+          $tag = "build-${{ github.run_number }}-$shortSha"
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $source = "Merged PR #${{ github.event.pull_request.number }}"
+          } else {
+            $source = "Manual workflow run"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "target=$target" >> $env:GITHUB_OUTPUT
+          "title=argos-explorer build ${{ github.run_number }} ($shortSha)" >> $env:GITHUB_OUTPUT
+          "source=$source" >> $env:GITHUB_OUTPUT
+
+      - name: Create or update GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TARGET: ${{ steps.release.outputs.target }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+          RELEASE_SOURCE: ${{ steps.release.outputs.source }}
+        run: |
+          $assets = @(
+            "dist/argos-explorer-setup.exe#Windows installer (recommended)",
+            "dist/argos-explorer-setup.exe.sha256#Installer SHA-256",
+            "dist/argos-explorer-windows-x64.zip#Portable Windows x64 ZIP",
+            "dist/argos-explorer-windows-x64/argos-explorer.exe#Portable Windows x64 executable"
+          )
+          $notes = @"
+          Automated Windows build of argos-explorer.
+
+          Source: $env:RELEASE_SOURCE
+          Commit: $env:RELEASE_TARGET
+
+          Most users should download argos-explorer-setup.exe and verify it with argos-explorer-setup.exe.sha256.
+          Rust is not required to install or run these assets.
+          "@
+
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG @assets --clobber --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            gh release edit $env:RELEASE_TAG --title $env:RELEASE_TITLE --notes $notes --prerelease --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create $env:RELEASE_TAG @assets --target $env:RELEASE_TARGET --title $env:RELEASE_TITLE --notes $notes --prerelease --repo $env:GITHUB_REPOSITORY
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

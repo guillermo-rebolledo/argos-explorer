@@ -89,6 +89,23 @@ scripts\package.cmd
 
 Only the computer producing the release needs Rust. Teammates installing the generated executable do not.
 
+## Automated releases
+
+Every pull request merged into `main` triggers the `Build merged PR release` GitHub Actions workflow. The workflow runs formatting checks, Clippy, and the complete test suite on `windows-latest`, then builds and publishes a traceable GitHub prerelease.
+
+Download builds from the [GitHub Releases page](https://github.com/guillermo-rebolledo/argos-explorer/releases). Each automated release is tagged as `build-<run-number>-<commit>` and includes:
+
+```text
+argos-explorer-setup.exe
+argos-explorer-setup.exe.sha256
+argos-explorer-windows-x64.zip
+argos-explorer.exe
+```
+
+Most users should download the installer and checksum. The portable ZIP and standalone executable are available for users who prefer not to install. Release builds can also be started manually from the repository's Actions tab through `workflow_dispatch`.
+
+Automated builds are marked as prereleases. Promote a tested build to a stable release from the GitHub Releases page when appropriate.
+
 ## Basic usage
 
 Inspect the current directory:
