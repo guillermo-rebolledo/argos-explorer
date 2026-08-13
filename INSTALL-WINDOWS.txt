@@ -1,0 +1,64 @@
+argos-explorer installation for Windows
+=============================
+
+Rust and Cargo are NOT required on the computer that installs argos-explorer.
+
+Recommended installation
+------------------------
+
+1. Copy these two files to the Windows computer:
+
+   argos-explorer-setup.exe
+   argos-explorer-setup.exe.sha256
+
+2. Optionally verify the download:
+
+   certutil -hashfile argos-explorer-setup.exe SHA256
+
+   The displayed hash must match argos-explorer-setup.exe.sha256.
+
+3. Double-click argos-explorer-setup.exe. No administrator access is required.
+
+4. Open a new Windows Terminal, PowerShell, or cmd.exe window and run:
+
+   argos-explorer C:\path\to\workspace
+
+   To inspect the current directory, run:
+
+   argos-explorer .
+
+The installer writes argos-explorer to:
+
+   %LOCALAPPDATA%\Programs\argos-explorer
+
+It also adds that directory to the current user's PATH. Existing terminals keep
+their old PATH, so open a new terminal after installation.
+
+Git and fonts
+-------------
+
+Git for Windows is optional. File browsing and previewing work without it.
+Install Git for Windows to enable Changes View and Diff View.
+
+Nerd Font icons are enabled by default. If the terminal font does not contain
+Nerd Font glyphs, use one of these alternatives:
+
+   argos-explorer --icons emoji .
+   argos-explorer --icons none .
+
+Uninstalling
+------------
+
+Double-click:
+
+   %LOCALAPPDATA%\Programs\argos-explorer\argos-explorer-uninstall.exe
+
+The uninstaller removes argos-explorer and its user PATH entry. User configuration under
+%APPDATA%\argos-explorer is intentionally preserved.
+
+Security note
+-------------
+
+Until argos-explorer-setup.exe is Authenticode-signed, Microsoft SmartScreen may show an
+"Unknown publisher" warning. Distribute the installer and checksum through a
+trusted team channel. Code-sign the installer before broader deployment.

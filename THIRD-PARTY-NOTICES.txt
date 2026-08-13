@@ -1,0 +1,26 @@
+argos-explorer third-party dependency notice
+==================================
+
+This distribution contains Rust dependencies under the license expressions below.
+Exact resolved versions, including transitive dependencies, are recorded in Cargo.lock.
+Upstream source and complete license texts are available from each package's crates.io
+page and repository.
+
+clap: MIT OR Apache-2.0
+content_inspector: MIT OR Apache-2.0
+crossbeam-channel: MIT OR Apache-2.0
+crossterm: MIT
+directories: MIT OR Apache-2.0
+ignore: Unlicense OR MIT
+lru: MIT
+memchr: Unlicense OR MIT
+notify: CC0-1.0
+nucleo and nucleo-matcher: MPL-2.0
+ratatui: MIT
+serde: MIT OR Apache-2.0
+syntect: MIT
+thiserror: MIT OR Apache-2.0
+toml: MIT OR Apache-2.0
+tracing: MIT
+tracing-subscriber: MIT
+unicode-width: MIT OR Apache-2.0

@@ -1,0 +1,3 @@
+# Stream bounded indexes for large Workspaces
+
+`argos-explorer` must remain interactive while indexing up to one million file paths and previewing files larger than memory. Workspace discovery streams compact path records into bounded search structures, Quick Open works on partial results, and large files use paged reads, bounded caches, sparse line checkpoints, and cancellable streaming search. The initial path index is rebuilt each session rather than persisted, avoiding stale results and retained local-path history; a disclosed partial index is preferred to exceeding the configured memory budget.

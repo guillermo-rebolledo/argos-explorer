@@ -1,0 +1,10 @@
+# Copy to %APPDATA%\argos-explorer\config.toml and change only what you need.
+icons = "nerd-font" # "nerd-font", "emoji", or "none"
+theme = "ansi"      # "ansi", "high-contrast", or "monochrome"
+ascii = false
+color = true
+mouse = true
+tab_width = 4
+small_file_limit_mib = 8
+page_cache_mib = 64
+index_memory_mib = 512

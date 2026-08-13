@@ -1,0 +1,44 @@
+[package]
+name = "argos-explorer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "A scalable Windows-first workspace inspector TUI"
+
+
+[dependencies]
+clap = { version = "4.6.6", features = ["derive", "env"] }
+content_inspector = "0.2.4"
+crossbeam-channel = "0.5.16"
+crossterm = "0.29.0"
+directories = "6.0.0"
+ignore = "0.4.33"
+lru = "0.18.2"
+memchr = "2.8.3"
+notify = "8.2.0"
+nucleo = "0.5.0"
+ratatui = "0.30.2"
+serde = { version = "1.0.229", features = ["derive"] }
+syntect = { version = "5.3.0", default-features = false, features = ["default-fancy"] }
+thiserror = "2.0.20"
+toml = "1.1.4"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+unicode-width = "0.2.2"
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+criterion = "0.8.2"
+predicates = "3.1.4"
+proptest = "1.11.0"
+tempfile = "3.27.0"
+windows-sys = { version = "0.61.2", features = ["Win32_System_ProcessStatus", "Win32_System_Threading"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[[bench]]
+name = "scale"
+harness = false
