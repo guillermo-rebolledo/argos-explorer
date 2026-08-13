@@ -46,6 +46,26 @@ Nerd Font glyphs, use one of these alternatives:
    argos-explorer --icons emoji .
    argos-explorer --icons none .
 
+Updating
+--------
+
+Check for a stable update:
+
+   argos-explorer update --check
+
+Install a stable update:
+
+   argos-explorer update
+
+Opt into merged-PR preview builds:
+
+   argos-explorer update --preview --check
+   argos-explorer update --preview
+
+The update is downloaded from GitHub Releases and its SHA-256 checksum is
+verified before the installer runs. Both installed and portable copies can
+self-update. Configuration is preserved.
+
 Uninstalling
 ------------
 

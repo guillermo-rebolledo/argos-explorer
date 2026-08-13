@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf};
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -34,6 +34,9 @@ pub enum ThemeMode {
     about = "A scalable Windows-first workspace inspector"
 )]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<CliCommand>,
+
     /// Workspace root. Defaults to the current directory.
     #[arg(value_name = "DIRECTORY")]
     directory: Option<PathBuf>,
@@ -61,6 +64,32 @@ struct Cli {
     /// Enable diagnostic logging at this tracing level.
     #[arg(long, env = "ARGOS_EXPLORER_LOG_LEVEL", value_name = "FILTER")]
     log_level: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+enum CliCommand {
+    /// Check for or install a newer GitHub release.
+    Update {
+        /// Use merged-PR preview releases instead of stable releases.
+        #[arg(long)]
+        preview: bool,
+
+        /// Report availability without installing the update.
+        #[arg(long)]
+        check: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UpdateOptions {
+    pub preview: bool,
+    pub check: bool,
+}
+
+#[derive(Debug)]
+pub enum Invocation {
+    Explore(Config),
+    Update(UpdateOptions),
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -120,9 +149,12 @@ pub enum ConfigError {
 }
 
 impl Config {
-    pub fn load() -> Result<Self, ConfigError> {
-        let cli = Cli::parse();
-        Self::from_cli(cli)
+    pub fn load_invocation() -> Result<Invocation, ConfigError> {
+        let mut cli = Cli::parse();
+        if let Some(CliCommand::Update { preview, check }) = cli.command.take() {
+            return Ok(Invocation::Update(UpdateOptions { preview, check }));
+        }
+        Self::from_cli(cli).map(Invocation::Explore)
     }
 
     fn from_cli(cli: Cli) -> Result<Self, ConfigError> {

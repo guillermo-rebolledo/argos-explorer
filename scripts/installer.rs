@@ -26,6 +26,9 @@ struct Options {
     quiet: bool,
     update_path: bool,
     install_dir: PathBuf,
+    wait_pid: Option<u32>,
+    portable_target: Option<PathBuf>,
+    cleanup_dir: Option<PathBuf>,
 }
 
 fn main() -> ExitCode {
@@ -70,6 +73,9 @@ fn parse_options() -> Result<Options, String> {
         quiet: false,
         update_path: true,
         install_dir: local_app_data.join("Programs").join(INSTALL_DIRECTORY_NAME),
+        wait_pid: None,
+        portable_target: None,
+        cleanup_dir: None,
     };
 
     let mut arguments = env::args_os().skip(1);
@@ -84,6 +90,31 @@ fn parse_options() -> Result<Options, String> {
                     .map(PathBuf::from)
                     .ok_or_else(|| "--install-dir requires a directory".to_owned())?;
             }
+            "--internal-wait-pid" => {
+                let value = arguments
+                    .next()
+                    .ok_or_else(|| "--internal-wait-pid requires a process ID".to_owned())?;
+                options.wait_pid =
+                    Some(value.to_string_lossy().parse().map_err(|_| {
+                        "--internal-wait-pid requires a numeric process ID".to_owned()
+                    })?);
+            }
+            "--internal-portable-target" => {
+                options.portable_target = Some(
+                    arguments
+                        .next()
+                        .map(PathBuf::from)
+                        .ok_or_else(|| "--internal-portable-target requires a path".to_owned())?,
+                );
+            }
+            "--internal-cleanup-dir" => {
+                options.cleanup_dir = Some(
+                    arguments
+                        .next()
+                        .map(PathBuf::from)
+                        .ok_or_else(|| "--internal-cleanup-dir requires a directory".to_owned())?,
+                );
+            }
             "--help" | "-h" | "/?" => unreachable!("help is handled before parsing"),
             unknown => return Err(format!("unknown option: {unknown}")),
         }
@@ -92,15 +123,89 @@ fn parse_options() -> Result<Options, String> {
 }
 
 fn run(options: Options) -> Result<(), String> {
+    if let Some(process_id) = options.wait_pid {
+        wait_for_process_exit(process_id)?;
+    }
     if options.uninstall {
         uninstall(&options)?;
+    } else if let Some(target) = &options.portable_target {
+        update_portable(target)?;
     } else {
         install(&options)?;
+    }
+    if let Some(cleanup_dir) = &options.cleanup_dir {
+        ensure_temporary_cleanup_dir(cleanup_dir)?;
+        schedule_self_removal(cleanup_dir)?;
     }
     if !options.quiet {
         wait_for_enter();
     }
     Ok(())
+}
+
+fn update_portable(target: &Path) -> Result<(), String> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| "portable executable has no parent directory".to_owned())?;
+    if !parent.is_dir() {
+        return Err(format!(
+            "portable executable directory does not exist: {}",
+            parent.display()
+        ));
+    }
+    write_atomically(target, ARGOS_EXPLORER_EXE)?;
+    let version = Command::new(target)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| format!("could not verify updated executable: {error}"))?;
+    if !version.status.success() {
+        return Err("the updated portable executable failed its version check".to_owned());
+    }
+    println!("Updated portable {}", target.display());
+    Ok(())
+}
+
+fn wait_for_process_exit(process_id: u32) -> Result<(), String> {
+    const SYNCHRONIZE: u32 = 0x0010_0000;
+    const WAIT_OBJECT_0: u32 = 0;
+    const WAIT_TIMEOUT: u32 = 258;
+    const WAIT_FAILED: u32 = u32::MAX;
+    let handle = unsafe { OpenProcess(SYNCHRONIZE, 0, process_id) };
+    if handle == 0 {
+        let error = io::Error::last_os_error();
+        if error.raw_os_error() == Some(87) {
+            return Ok(());
+        }
+        return Err(format!("could not wait for process {process_id}: {error}"));
+    }
+    let result = unsafe { WaitForSingleObject(handle, 120_000) };
+    unsafe { CloseHandle(handle) };
+    match result {
+        WAIT_OBJECT_0 => Ok(()),
+        WAIT_TIMEOUT => Err(format!(
+            "timed out waiting for argos-explorer process {process_id} to exit"
+        )),
+        WAIT_FAILED => Err(format!(
+            "waiting for argos-explorer process {process_id} failed: {}",
+            io::Error::last_os_error()
+        )),
+        value => Err(format!("unexpected process wait result: {value}")),
+    }
+}
+
+fn ensure_temporary_cleanup_dir(path: &Path) -> Result<(), String> {
+    let temp = normalize_path(&env::temp_dir());
+    let candidate = normalize_path(path);
+    let prefix = format!("{temp}\\");
+    if candidate.starts_with(&prefix) {
+        Ok(())
+    } else {
+        Err(format!(
+            "refusing to clean a directory outside the temporary directory: {}",
+            path.display()
+        ))
+    }
 }
 
 fn install(options: &Options) -> Result<(), String> {
@@ -343,10 +448,15 @@ fn same_path(left: &Path, right: &Path) -> bool {
 }
 
 fn normalize_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .replace('/', "\\")
-        .trim_end_matches('\\')
-        .to_lowercase()
+    let value = path.to_string_lossy().replace('/', "\\");
+    let value = if let Some(rest) = value.strip_prefix("\\\\?\\UNC\\") {
+        format!("\\\\{rest}")
+    } else if let Some(rest) = value.strip_prefix("\\\\?\\") {
+        rest.to_owned()
+    } else {
+        value
+    };
+    value.trim_end_matches('\\').to_lowercase()
 }
 
 fn wait_for_enter() {
@@ -395,4 +505,11 @@ unsafe extern "system" {
         timeout: u32,
         result: *mut usize,
     ) -> isize;
+}
+
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn OpenProcess(desired_access: u32, inherit_handle: i32, process_id: u32) -> isize;
+    fn WaitForSingleObject(handle: isize, milliseconds: u32) -> u32;
+    fn CloseHandle(handle: isize) -> i32;
 }

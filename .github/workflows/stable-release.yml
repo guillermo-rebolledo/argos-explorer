@@ -1,0 +1,102 @@
+name: Publish stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version from Cargo.toml, without the leading v
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stable-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish stable Windows release
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.97.0
+          rustc --version
+          cargo --version
+
+      - name: Validate release version
+        id: release
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') {
+            throw "Version '$version' is not a semantic version"
+          }
+          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $manifestVersion = $metadata.packages[0].version
+          if ($manifestVersion -ne $version) {
+            throw "Cargo.toml version '$manifestVersion' does not match requested version '$version'"
+          }
+          $target = (git rev-parse HEAD).Trim()
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "target=$target" >> $env:GITHUB_OUTPUT
+          "title=argos-explorer v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Check formatting
+        shell: cmd
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        shell: cmd
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Run tests
+        shell: cmd
+        run: cargo test --all-targets --all-features --locked
+
+      - name: Build installer and portable archive
+        shell: cmd
+        env:
+          ARGOS_EXPLORER_BUILD_TAG: ${{ steps.release.outputs.tag }}
+        run: scripts\package.cmd
+
+      - name: Create GitHub stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TARGET: ${{ steps.release.outputs.target }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $env:RELEASE_TAG already exists; stable releases are immutable"
+          }
+          $assets = @(
+            "dist/argos-explorer-setup.exe#Windows installer (recommended)",
+            "dist/argos-explorer-setup.exe.sha256#Installer SHA-256",
+            "dist/argos-explorer-windows-x64.zip#Portable Windows x64 ZIP",
+            "dist/argos-explorer-windows-x64/argos-explorer.exe#Portable Windows x64 executable"
+          )
+          $notes = @"
+          Stable Windows release of argos-explorer.
+
+          Commit: $env:RELEASE_TARGET
+
+          Most users should download argos-explorer-setup.exe and verify it with argos-explorer-setup.exe.sha256.
+          Rust is not required to install or run these assets.
+          "@
+          gh release create $env:RELEASE_TAG @assets --target $env:RELEASE_TARGET --title $env:RELEASE_TITLE --notes $notes --latest --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

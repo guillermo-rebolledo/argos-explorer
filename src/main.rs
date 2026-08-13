@@ -1,6 +1,12 @@
 use std::{error::Error, process::ExitCode};
 
-use argos_explorer::{app::App, config::Config, diagnostics, terminal::TerminalSession};
+use argos_explorer::{
+    app::App,
+    config::{Config, Invocation},
+    diagnostics,
+    terminal::TerminalSession,
+    update,
+};
 
 fn main() -> ExitCode {
     match run() {
@@ -18,7 +24,14 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let config = Config::load()?;
+    match Config::load_invocation()? {
+        Invocation::Update(options) => update::run(options)?,
+        Invocation::Explore(config) => run_explorer(config)?,
+    }
+    Ok(())
+}
+
+fn run_explorer(config: Config) -> Result<(), Box<dyn Error>> {
     let log_path = diagnostics::initialize(config.log_level.as_deref())?;
     if let Some(path) = log_path {
         tracing::info!(path = %path.display(), "diagnostic logging enabled");

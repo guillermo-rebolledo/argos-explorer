@@ -44,3 +44,14 @@ fn inaccessible_root_has_actionable_error() {
         ));
     drop(fs::metadata(temp.path()));
 }
+
+#[test]
+fn update_help_exposes_stable_and_preview_modes() {
+    let mut command = Command::cargo_bin("argos-explorer").unwrap();
+    command
+        .args(["update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--preview"))
+        .stdout(predicate::str::contains("--check"));
+}

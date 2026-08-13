@@ -8,6 +8,7 @@ pub mod input;
 pub mod search;
 pub mod terminal;
 pub mod ui;
+pub mod update;
 pub mod viewer;
 pub mod watch;
 pub mod worker;

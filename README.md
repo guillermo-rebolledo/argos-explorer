@@ -95,7 +95,7 @@ Only the computer producing the release needs Rust. Teammates installing the gen
 
 Every pull request merged into `main` triggers the `Build merged PR release` GitHub Actions workflow. The workflow runs formatting checks, Clippy, and the complete test suite on `windows-latest`, then builds and publishes a traceable GitHub prerelease.
 
-Download builds from the [GitHub Releases page](https://github.com/guillermo-rebolledo/argos-explorer/releases). Each automated release is tagged as `build-<run-number>-<commit>` and includes:
+Download builds from the [GitHub Releases page](https://github.com/guillermo-rebolledo/argos-explorer/releases). Each automated release is tagged as `preview-v<version>-build-<run-number>-<commit>` and includes:
 
 ```text
 argos-explorer-setup.exe
@@ -106,7 +106,7 @@ argos-explorer.exe
 
 Most users should download the installer and checksum. The portable ZIP and standalone executable are available for users who prefer not to install. Release builds can also be started manually from the repository's Actions tab through `workflow_dispatch`.
 
-Automated builds are marked as prereleases. Promote a tested build to a stable release from the GitHub Releases page when appropriate.
+Automated builds are marked as prereleases. Stable releases are created manually through the `Publish stable release` workflow after the version in `Cargo.toml` is updated. Stable tags use `v<version>` and are immutable.
 
 ## Basic usage
 
@@ -127,10 +127,14 @@ The selected directory becomes the Workspace Root. Navigation cannot move above 
 ### Command-line options
 
 ```text
-Usage: argos-explorer.exe [OPTIONS] [DIRECTORY]
+Usage: argos-explorer.exe [OPTIONS] [DIRECTORY] [COMMAND]
 
 Arguments:
   [DIRECTORY]  Workspace root. Defaults to the current directory
+
+Commands:
+  update  Check for or install a newer GitHub release
+  help    Print command help
 
 Options:
       --config <FILE>       Read configuration from this TOML file
@@ -262,6 +266,39 @@ Logs are written under:
 ```
 
 File contents and diff bodies are not written to diagnostic logs.
+
+## Updating
+
+Check the stable channel without installing:
+
+```powershell
+argos-explorer update --check
+```
+
+Install the latest stable release:
+
+```powershell
+argos-explorer update
+```
+
+Merged-PR builds are available through the opt-in preview channel:
+
+```powershell
+argos-explorer update --preview --check
+argos-explorer update --preview
+```
+
+The updater downloads `argos-explorer-setup.exe` and its SHA-256 file from GitHub Releases, rejects insecure URLs and checksum mismatches, waits for the running process to exit, and then updates either an installer-managed or portable executable. Configuration is preserved.
+
+To update a local source checkout instead:
+
+```powershell
+git pull --ff-only origin main
+cargo test --locked
+scripts\package.cmd
+```
+
+To publish a stable update, change the package version in `Cargo.toml`, merge that change to `main`, then run `Publish stable release` from the Actions tab with the same semantic version.
 
 ## Uninstalling
 

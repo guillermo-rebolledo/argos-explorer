@@ -49,17 +49,15 @@ jobs:
         shell: cmd
         run: cargo test --all-targets --all-features --locked
 
-      - name: Build installer and portable archive
-        shell: cmd
-        run: scripts\package.cmd
-
       - name: Determine release metadata
         id: release
         shell: pwsh
         run: |
           $shortSha = (git rev-parse --short=7 HEAD).Trim()
           $target = (git rev-parse HEAD).Trim()
-          $tag = "build-${{ github.run_number }}-$shortSha"
+          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $manifestVersion = $metadata.packages[0].version
+          $tag = "preview-v$manifestVersion-build-${{ github.run_number }}-$shortSha"
           if ("${{ github.event_name }}" -eq "pull_request") {
             $source = "Merged PR #${{ github.event.pull_request.number }}"
           } else {
@@ -67,8 +65,14 @@ jobs:
           }
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "target=$target" >> $env:GITHUB_OUTPUT
-          "title=argos-explorer build ${{ github.run_number }} ($shortSha)" >> $env:GITHUB_OUTPUT
+          "title=argos-explorer v$manifestVersion preview build ${{ github.run_number }} ($shortSha)" >> $env:GITHUB_OUTPUT
           "source=$source" >> $env:GITHUB_OUTPUT
+
+      - name: Build installer and portable archive
+        shell: cmd
+        env:
+          ARGOS_EXPLORER_BUILD_TAG: ${{ steps.release.outputs.tag }}
+        run: scripts\package.cmd
 
       - name: Create or update GitHub prerelease
         shell: pwsh
