@@ -16,8 +16,8 @@ use crate::{
     search::{PathRecord, QuickOpen},
     terminal::ArgosExplorerTerminal,
     viewer::{
-        BinaryDocument, LargeDocument, LoadedDocument, Page, SearchMatch, TextDocument, find_lines,
-        text_document_from_string,
+        BinaryDocument, LargeDocument, LoadedDocument, MarkdownDocument, Page, SearchMatch,
+        TextDocument, find_lines, text_document_from_string,
     },
     watch::{WatchNotice, WatchService},
     worker::{WorkerCommand, WorkerPool, WorkerResult},
@@ -95,6 +95,7 @@ pub enum FileContent {
     Empty,
     Loading,
     Text(TextDocument),
+    Markdown(MarkdownDocument),
     Binary(BinaryDocument),
     Large(LargeFileState),
     Error(String),
@@ -704,6 +705,7 @@ impl App {
         self.viewer.content = FileContent::Loading;
         self.viewer.vertical = 0;
         self.viewer.horizontal = 0;
+        self.viewer.wrap = false;
         self.viewer.stale = false;
         self.viewer.query.clear();
         self.viewer.matches.clear();
@@ -909,6 +911,10 @@ impl App {
                     match result {
                         Ok(LoadedDocument::Text(document)) => {
                             self.viewer.content = FileContent::Text(document)
+                        }
+                        Ok(LoadedDocument::Markdown(document)) => {
+                            self.viewer.wrap = true;
+                            self.viewer.content = FileContent::Markdown(document);
                         }
                         Ok(LoadedDocument::Binary(document)) => {
                             self.viewer.content = FileContent::Binary(document)
@@ -1149,6 +1155,13 @@ impl App {
                     .saturating_add_signed(delta)
                     .min(document.line_count().saturating_sub(1));
             }
+            FileContent::Markdown(document) => {
+                self.viewer.vertical = self
+                    .viewer
+                    .vertical
+                    .saturating_add_signed(delta)
+                    .min(document.line_count().saturating_sub(1));
+            }
             FileContent::Large(large) => {
                 let line_count = large
                     .active_page()
@@ -1232,6 +1245,9 @@ impl App {
     fn file_end(&mut self) {
         match &mut self.viewer.content {
             FileContent::Text(document) => {
+                self.viewer.vertical = document.line_count().saturating_sub(1)
+            }
+            FileContent::Markdown(document) => {
                 self.viewer.vertical = document.line_count().saturating_sub(1)
             }
             FileContent::Large(large) => {
@@ -1321,6 +1337,7 @@ impl App {
     fn update_viewer_search(&mut self) {
         self.viewer.matches = match &self.viewer.content {
             FileContent::Text(document) => find_lines(&document.text, &self.viewer.query),
+            FileContent::Markdown(document) => find_lines(&document.plain_text, &self.viewer.query),
             _ => Vec::new(),
         };
         self.viewer.current_match = 0;

@@ -16,6 +16,7 @@ lru: MIT
 memchr: Unlicense OR MIT
 notify: CC0-1.0
 nucleo and nucleo-matcher: MPL-2.0
+pulldown-cmark: MIT
 ratatui: MIT
 reqwest: MIT OR Apache-2.0
 semver: MIT OR Apache-2.0

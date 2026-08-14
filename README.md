@@ -6,6 +6,7 @@
 
 - Navigate a Workspace with an expandable File Tree using the keyboard or mouse.
 - Open text files in a full-screen, syntax-highlighted File Preview.
+- Render Markdown headings, emphasis, lists, task markers, links, quotes, code blocks, rules, and tables as a styled preview instead of raw source.
 - Page and search large files without loading the entire file into memory.
 - Inspect conflicted, staged, unstaged, and untracked Git changes.
 - View unified diffs, including binary, renamed, deleted, conflicted, and large untracked files.
@@ -164,7 +165,7 @@ Displays the Workspace as an expandable tree. Activating a file opens its full-s
 
 ### File Preview
 
-Displays text files with line numbers and syntax highlighting. Large files use bounded, paged reads. Binary files display metadata instead of writing binary content to the terminal.
+Displays text files with line numbers and syntax highlighting. Markdown files (`.md`, `.markdown`, `.mdown`, `.mkd`, and `.mkdn`) open as a styled semantic preview with wrapping enabled; `/` searches the rendered text. Large files use bounded, paged reads, so Markdown files above the configured small-file limit fall back to the paged text viewer. Binary files display metadata instead of writing binary content to the terminal.
 
 ### Changes View
 

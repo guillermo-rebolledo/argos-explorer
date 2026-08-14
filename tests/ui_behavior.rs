@@ -4,7 +4,7 @@ use argos_explorer::{
     app::{App, FileContent, Screen},
     config::{Config, IconMode, ThemeMode},
     ui,
-    viewer::text_document_from_string,
+    viewer::{LoadedDocument, load_document, text_document_from_string},
 };
 use ratatui::{Terminal, backend::TestBackend};
 
@@ -121,4 +121,37 @@ fn narrow_top_bar_hides_vscode_to_preserve_quit_button() {
 
     assert!(!screen.contains("VSCode"));
     assert!(screen.contains("Quit"));
+}
+
+#[test]
+fn markdown_preview_renders_semantics_and_searches_rendered_text() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temp.path()).unwrap();
+    let path = root.join("README.md");
+    std::fs::write(
+        &path,
+        "# Preview title\n\nA **rendered paragraph** with [docs](https://example.com).\n",
+    )
+    .unwrap();
+    let LoadedDocument::Markdown(document) = load_document(&path, 1024).unwrap() else {
+        panic!("expected Markdown document");
+    };
+    let mut app = test_app(root);
+    app.screen = Screen::Preview;
+    app.viewer.path = Some(path);
+    app.viewer.wrap = true;
+    app.viewer.content = FileContent::Markdown(document);
+
+    let screen = render_text(&mut app, 80, 20);
+    assert!(screen.contains("Preview title"));
+    assert!(screen.contains("rendered paragraph"));
+    assert!(screen.contains("https://example.com"));
+    assert!(!screen.contains("# Preview title"));
+    assert!(!screen.contains("**rendered paragraph**"));
+
+    app.begin_search();
+    for character in "rendered paragraph".chars() {
+        app.search_char(character);
+    }
+    assert!(!app.viewer.matches.is_empty());
 }

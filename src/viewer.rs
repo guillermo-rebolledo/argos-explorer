@@ -14,6 +14,9 @@ use syntect::{
 };
 use thiserror::Error;
 
+mod markdown;
+pub use markdown::MarkdownDocument;
+
 pub const PAGE_SIZE: usize = 256 * 1024;
 const BINARY_SAMPLE: usize = 8192;
 const MAX_SEARCH_MATCHES: usize = 10_000;
@@ -63,6 +66,7 @@ pub struct HighlightSpan {
     pub bold: bool,
     pub italic: bool,
     pub underline: bool,
+    pub strikethrough: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +113,7 @@ pub struct LargeDocument {
 #[derive(Debug, Clone)]
 pub enum LoadedDocument {
     Text(TextDocument),
+    Markdown(MarkdownDocument),
     Binary(BinaryDocument),
     Large(LargeDocument),
 }
@@ -206,6 +211,14 @@ pub fn load_document(path: &Path, small_file_limit: u64) -> Result<LoadedDocumen
             source,
         })?;
     let (encoding, text) = decode(&bytes, encoding);
+    if is_markdown(path) {
+        return Ok(LoadedDocument::Markdown(markdown::render_markdown(
+            path.to_path_buf(),
+            encoding,
+            size,
+            &text,
+        )));
+    }
     let line_ranges = line_ranges(&text);
     let highlighted = highlight(path, &text).unwrap_or_default();
     Ok(LoadedDocument::Text(TextDocument {
@@ -230,6 +243,17 @@ pub fn text_document_from_string(path: PathBuf, text: String) -> TextDocument {
         line_ranges,
         highlighted,
     }
+}
+
+fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "md" | "markdown" | "mdown" | "mkd" | "mkdn"
+            )
+        })
 }
 
 pub fn load_page(
@@ -589,6 +613,7 @@ fn highlight(path: &Path, text: &str) -> Result<Vec<HighlightedLine>, ViewerErro
                 underline: style
                     .font_style
                     .contains(syntect::highlighting::FontStyle::UNDERLINE),
+                strikethrough: false,
             })
             .collect();
         result.push(HighlightedLine { spans });

@@ -413,23 +413,9 @@ fn untracked_diff(
             binary: true,
             large_untracked: None,
         }),
-        LoadedDocument::Text(document) => {
-            let mut patch = format!(
-                "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}\n@@ -0,0 +1,{1} @@\n",
-                entry.display_path(),
-                document.line_count()
-            );
-            for line in document.text.lines() {
-                patch.push('+');
-                patch.push_str(line);
-                patch.push('\n');
-            }
-            Ok(DiffOutput {
-                title,
-                text: patch,
-                binary: false,
-                large_untracked: None,
-            })
+        LoadedDocument::Text(document) => Ok(untracked_text_diff(title, entry, &document.text)),
+        LoadedDocument::Markdown(document) => {
+            Ok(untracked_text_diff(title, entry, &document.source))
         }
         LoadedDocument::Large(document) => Ok(DiffOutput {
             title,
@@ -440,6 +426,25 @@ fn untracked_diff(
             binary: false,
             large_untracked: Some(document),
         }),
+    }
+}
+
+fn untracked_text_diff(title: String, entry: &ChangeEntry, source: &str) -> DiffOutput {
+    let mut patch = format!(
+        "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}\n@@ -0,0 +1,{1} @@\n",
+        entry.display_path(),
+        source.lines().count()
+    );
+    for line in source.lines() {
+        patch.push('+');
+        patch.push_str(line);
+        patch.push('\n');
+    }
+    DiffOutput {
+        title,
+        text: patch,
+        binary: false,
+        large_untracked: None,
     }
 }
 

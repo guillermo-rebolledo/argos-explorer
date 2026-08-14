@@ -14,7 +14,7 @@ use crate::{
     config::ThemeMode,
     git::ChangeGroup,
     icons,
-    viewer::{HighlightedLine, Page, TextDocument},
+    viewer::{HighlightedLine, MarkdownDocument, Page, TextDocument},
     workspace::{EntryKind, LoadState},
 };
 
@@ -145,6 +145,11 @@ fn render_context(frame: &mut Frame<'_>, app: &App, area: Rect, palette: Palette
                     .as_ref()
                     .map(|path| relative(app, path))
                     .unwrap_or_else(|| "No file".to_owned());
+                let path = if matches!(app.viewer.content, FileContent::Markdown(_)) {
+                    format!("{path}  [Markdown preview]")
+                } else {
+                    path
+                };
                 if app.viewer.stale {
                     format!("{path}  [changed on disk — press r to reload]")
                 } else {
@@ -309,6 +314,9 @@ fn render_preview(frame: &mut Frame<'_>, app: &App, area: Rect, palette: Palette
             palette.warning,
         ),
         FileContent::Text(document) => render_text_document(frame, area, document, app, palette),
+        FileContent::Markdown(document) => {
+            render_markdown_document(frame, area, document, app, palette)
+        }
         FileContent::Large(large) => {
             if let Some(page) = large.active_page() {
                 render_large_page(frame, area, page, app, palette);
@@ -532,7 +540,7 @@ fn render_text_document(
             let mut spans = vec![prefix];
             if app.config.color && horizontal == 0 {
                 if let Some(highlighted) = document.highlighted.get(index) {
-                    spans.extend(highlighted_spans(highlighted));
+                    spans.extend(highlighted_spans(highlighted, true));
                 } else {
                     spans.push(Span::raw(
                         document.line(index).unwrap_or_default().to_owned(),
@@ -553,6 +561,43 @@ fn render_text_document(
         .collect::<Vec<_>>();
     let paragraph = Paragraph::new(Text::from(lines));
     if wrap {
+        frame.render_widget(paragraph.wrap(Wrap { trim: false }), area);
+    } else {
+        frame.render_widget(paragraph, area);
+    }
+}
+
+fn render_markdown_document(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    document: &MarkdownDocument,
+    app: &App,
+    palette: Palette,
+) {
+    let end = app
+        .viewer
+        .vertical
+        .saturating_add(area.height as usize)
+        .min(document.line_count());
+    let lines = (app.viewer.vertical..end)
+        .map(|index| {
+            let line = &document.lines[index];
+            if app.viewer.horizontal == 0 {
+                Line::from(highlighted_spans(line, app.config.color))
+            } else {
+                Line::from(Span::styled(
+                    crop(
+                        &document.line_text(index).unwrap_or_default(),
+                        app.viewer.horizontal,
+                        area.width as usize,
+                    ),
+                    Style::default().fg(palette.text),
+                ))
+            }
+        })
+        .collect::<Vec<_>>();
+    let paragraph = Paragraph::new(Text::from(lines));
+    if app.viewer.wrap {
         frame.render_widget(paragraph.wrap(Wrap { trim: false }), area);
     } else {
         frame.render_widget(paragraph, area);
@@ -630,7 +675,7 @@ fn render_large_diff_page(
     }
 }
 
-fn highlighted_spans(line: &HighlightedLine) -> Vec<Span<'static>> {
+fn highlighted_spans(line: &HighlightedLine, color_enabled: bool) -> Vec<Span<'static>> {
     line.spans
         .iter()
         .map(|span| {
@@ -644,15 +689,17 @@ fn highlighted_spans(line: &HighlightedLine) -> Vec<Span<'static>> {
             if span.underline {
                 modifier |= Modifier::UNDERLINED;
             }
+            if span.strikethrough {
+                modifier |= Modifier::CROSSED_OUT;
+            }
+            let foreground = if color_enabled {
+                Color::Rgb(span.foreground.r, span.foreground.g, span.foreground.b)
+            } else {
+                Color::Reset
+            };
             Span::styled(
                 span.text.clone(),
-                Style::default()
-                    .fg(Color::Rgb(
-                        span.foreground.r,
-                        span.foreground.g,
-                        span.foreground.b,
-                    ))
-                    .add_modifier(modifier),
+                Style::default().fg(foreground).add_modifier(modifier),
             )
         })
         .collect()
