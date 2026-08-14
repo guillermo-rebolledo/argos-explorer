@@ -72,3 +72,31 @@ fn searches_extremely_long_lines_in_bounded_chunks() {
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].line_number, 1);
 }
+
+#[test]
+fn markdown_files_load_as_rendered_documents() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("README.md");
+    fs::write(
+        &path,
+        "# Rendered title\n\nA **bold** paragraph with [docs](https://example.com).\n",
+    )
+    .unwrap();
+
+    let loaded = load_document(&path, 1024).unwrap();
+    let LoadedDocument::Markdown(document) = loaded else {
+        panic!("expected rendered Markdown document");
+    };
+
+    assert!(document.plain_text.contains("Rendered title"));
+    assert!(!document.plain_text.contains("# Rendered title"));
+    assert!(!document.plain_text.contains("**bold**"));
+    assert!(document.plain_text.contains("https://example.com"));
+    assert!(
+        document
+            .lines
+            .iter()
+            .flat_map(|line| &line.spans)
+            .any(|span| span.bold)
+    );
+}
