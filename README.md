@@ -18,6 +18,14 @@
 
 `argos-explorer` never edits files or changes Git state.
 
+<img width="1920" height="1440" alt="27_1x_shots_so" src="https://github.com/user-attachments/assets/e5d53cf8-0347-4502-aaa5-2717c23bf6dd" />
+<img width="1920" height="1440" alt="471_1x_shots_so" src="https://github.com/user-attachments/assets/aa7efb0a-9691-4958-836f-e8a3ba976348" />
+<img width="1920" height="1440" alt="713_1x_shots_so" src="https://github.com/user-attachments/assets/af5d7d7f-c741-4965-be9a-528a147bd86b" />
+<img width="1920" height="1440" alt="179_1x_shots_so" src="https://github.com/user-attachments/assets/c8f92132-460a-4368-884d-783eae1703f4" />
+<img width="1920" height="1440" alt="914_1x_shots_so" src="https://github.com/user-attachments/assets/51016bb8-83cd-4b2c-917e-6a39b7f2ded2" />
+
+
+
 ## Requirements
 
 - Windows 10 or Windows 11, x64.
